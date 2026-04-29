@@ -323,6 +323,19 @@ For cloud sandbox backends, persistence is filesystem-oriented. `TERMINAL_LIFETI
 | `BLUEBUBBLES_HOME_CHANNEL` | Phone/email for cron/notification delivery |
 | `BLUEBUBBLES_ALLOWED_USERS` | Comma-separated authorized users |
 | `BLUEBUBBLES_ALLOW_ALL_USERS` | Allow all users (`true`/`false`) |
+| `SENDBLUE_API_KEY_ID` | Sendblue API Key ID (`sb-api-key-id`) |
+| `SENDBLUE_API_SECRET_KEY` | Sendblue API Secret (`sb-api-secret-key`) |
+| `SENDBLUE_FROM_NUMBER` | Sendblue sending number (E.164) |
+| `SENDBLUE_WEBHOOK_PUBLIC_URL` | Public **HTTPS** base URL for receive webhooks (e.g. ngrok; no path — Hermes appends `/sendblue-webhook`) |
+| `SENDBLUE_WEBHOOK_HOST` | Local bind address (default `0.0.0.0`) |
+| `SENDBLUE_WEBHOOK_PORT` | Local listener port (default `8646`) |
+| `SENDBLUE_WEBHOOK_PATH` | URL path for inbound POSTs (default `/sendblue-webhook`) |
+| `SENDBLUE_WEBHOOK_SECRET` | Optional; must match Sendblue `sb-signing-secret` header |
+| `SENDBLUE_HOME_CHANNEL` | E.164 or `sendblue:group:...` for cron/notifications |
+| `SENDBLUE_ALLOWED_USERS` | Comma-separated E.164 allowlist for DMs |
+| `SENDBLUE_GROUP_ALLOWED_USERS` | Comma-separated `sendblue:group:...` allowlist |
+| `SENDBLUE_ALLOW_ALL_USERS` | Allow all senders (`true`/`false`) |
+| `SENDBLUE_SKIP_WEBHOOK_REGISTER` | Set `true` to skip `POST /api/account/webhooks` (advanced) |
 | `QQ_APP_ID` | QQ Bot App ID from [q.qq.com](https://q.qq.com) |
 | `QQ_CLIENT_SECRET` | QQ Bot App Secret from [q.qq.com](https://q.qq.com) |
 | `QQ_STT_API_KEY` | API key for external STT fallback provider (optional, used when QQ built-in ASR returns no text) |

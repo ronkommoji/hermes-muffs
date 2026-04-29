@@ -46,6 +46,7 @@ Each session is tagged with its source platform:
 | `wecom` | WeCom (WeChat Work) |
 | `weixin` | Weixin (personal WeChat) |
 | `bluebubbles` | Apple iMessage via BlueBubbles macOS server |
+| `sendblue` | iMessage/SMS via Sendblue cloud API |
 | `qqbot` | QQ Bot (Tencent QQ) via Official API v2 |
 | `homeassistant` | Home Assistant conversation |
 | `webhook` | Incoming webhooks |

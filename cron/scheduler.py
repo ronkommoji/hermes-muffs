@@ -77,6 +77,7 @@ _KNOWN_DELIVERY_PLATFORMS = frozenset({
     "telegram", "discord", "slack", "whatsapp", "signal",
     "matrix", "mattermost", "homeassistant", "dingtalk", "feishu",
     "wecom", "wecom_callback", "weixin", "sms", "email", "webhook", "bluebubbles",
+    "sendblue",
     "qqbot", "yuanbao",
 })
 
@@ -96,6 +97,7 @@ _HOME_TARGET_ENV_VARS = {
     "wecom": "WECOM_HOME_CHANNEL",
     "weixin": "WEIXIN_HOME_CHANNEL",
     "bluebubbles": "BLUEBUBBLES_HOME_CHANNEL",
+    "sendblue": "SENDBLUE_HOME_CHANNEL",
     "qqbot": "QQBOT_HOME_CHANNEL",
 }
 
@@ -338,6 +340,7 @@ def _deliver_result(job: dict, content: str, adapters=None, loop=None) -> Option
         "email": Platform.EMAIL,
         "sms": Platform.SMS,
         "bluebubbles": Platform.BLUEBUBBLES,
+        "sendblue": Platform.SENDBLUE,
         "qqbot": Platform.QQBOT,
         "yuanbao": Platform.YUANBAO,
     }

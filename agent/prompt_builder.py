@@ -380,6 +380,11 @@ PLATFORM_HINTS = {
         "MEDIA:/absolute/path/to/file in your response. Images (.jpg, .png, "
         ".heic) appear as photos and other files arrive as attachments."
     ),
+    "sendblue": (
+        "You are chatting via iMessage or SMS using Sendblue. Messages are plain "
+        "text — no markdown. Keep replies concise and conversational. For longer "
+        "answers, prefer short paragraphs separated by blank lines."
+    ),
     "mattermost": (
         "You are in a Mattermost workspace communicating with your user. "
         "Mattermost renders standard Markdown — headings, bold, italic, code "

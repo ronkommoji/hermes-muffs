@@ -128,7 +128,7 @@ SEND_MESSAGE_SCHEMA = {
             },
             "target": {
                 "type": "string",
-                "description": "Delivery target. Format: 'platform' (uses home channel), 'platform:#channel-name', 'platform:chat_id', or 'platform:chat_id:thread_id' for Telegram topics and Discord threads. Examples: 'telegram', 'telegram:-1001234567890:17585', 'discord:999888777:555444333', 'discord:#bot-home', 'slack:#engineering', 'signal:+155****4567', 'matrix:!roomid:server.org', 'matrix:@user:server.org', 'yuanbao:direct:<account_id>' (DM), 'yuanbao:group:<group_code>' (group chat)"
+                "description": "Delivery target. Format: 'platform' (uses home channel), 'platform:#channel-name', 'platform:chat_id', or 'platform:chat_id:thread_id' for Telegram topics and Discord threads. Examples: 'telegram', 'telegram:-1001234567890:17585', 'discord:999888777:555444333', 'discord:#bot-home', 'slack:#engineering', 'signal:+155****4567', 'sendblue:+15551234567', 'sendblue:group:<group_uuid>', 'matrix:!roomid:server.org', 'matrix:@user:server.org', 'yuanbao:direct:<account_id>' (DM), 'yuanbao:group:<group_code>' (group chat)"
             },
             "message": {
                 "type": "string",
@@ -212,6 +212,7 @@ def _handle_send(args):
         "whatsapp": Platform.WHATSAPP,
         "signal": Platform.SIGNAL,
         "bluebubbles": Platform.BLUEBUBBLES,
+        "sendblue": Platform.SENDBLUE,
         "qqbot": Platform.QQBOT,
         "matrix": Platform.MATRIX,
         "mattermost": Platform.MATTERMOST,
@@ -349,6 +350,18 @@ def _parse_target_ref(platform_name: str, target_ref: str):
             return match.group(1), None, True
         if target_ref.strip().isdigit():
             return f"group:{target_ref.strip()}", None, True
+        return None, None, False
+    if platform_name == "sendblue":
+        tr = target_ref.strip()
+        if tr.startswith("group:"):
+            gid = tr[6:].strip()
+            if gid:
+                return f"sendblue:group:{gid}", None, True
+        if tr.startswith("sendblue:group:"):
+            return tr, None, True
+        match = _E164_TARGET_RE.fullmatch(tr)
+        if match:
+            return tr.strip(), None, True
         return None, None, False
     if platform_name in _PHONE_PLATFORMS:
         match = _E164_TARGET_RE.fullmatch(target_ref)
@@ -597,6 +610,8 @@ async def _send_to_platform(platform, pconfig, chat_id, message, thread_id=None,
             result = await _send_wecom(pconfig.extra, chat_id, chunk)
         elif platform == Platform.BLUEBUBBLES:
             result = await _send_bluebubbles(pconfig.extra, chat_id, chunk)
+        elif platform == Platform.SENDBLUE:
+            result = await _send_sendblue(pconfig.extra, chat_id, chunk)
         elif platform == Platform.QQBOT:
             result = await _send_qqbot(pconfig, chat_id, chunk)
         else:
@@ -1416,6 +1431,14 @@ async def _send_bluebubbles(extra, chat_id, message):
             await adapter.disconnect()
     except Exception as e:
         return _error(f"BlueBubbles send failed: {e}")
+
+
+async def _send_sendblue(extra, chat_id, message):
+    """Send via Sendblue REST API (no webhook listener required)."""
+    from gateway.platforms.sendblue import check_sendblue_requirements, send_sendblue_direct
+    if not check_sendblue_requirements():
+        return {"error": "Sendblue requirements not met (need httpx)."}
+    return await send_sendblue_direct(extra, chat_id, message)
 
 
 async def _send_feishu(pconfig, chat_id, message, media_files=None, thread_id=None):

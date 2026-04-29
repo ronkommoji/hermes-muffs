@@ -510,6 +510,7 @@ const sidebars: SidebarsConfig = {
         'user-guide/messaging/wecom-callback',
         'user-guide/messaging/weixin',
         'user-guide/messaging/bluebubbles',
+        'user-guide/messaging/sendblue',
         'user-guide/messaging/qqbot',
         'user-guide/messaging/yuanbao',
         'user-guide/messaging/open-webui',

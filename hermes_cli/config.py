@@ -69,6 +69,11 @@ _EXTRA_ENV_KEYS = frozenset({
     "WEIXIN_ALLOWED_USERS", "WEIXIN_GROUP_ALLOWED_USERS", "WEIXIN_ALLOW_ALL_USERS",
     "BLUEBUBBLES_SERVER_URL", "BLUEBUBBLES_PASSWORD",
     "BLUEBUBBLES_HOME_CHANNEL", "BLUEBUBBLES_HOME_CHANNEL_NAME",
+    "SENDBLUE_API_KEY_ID", "SENDBLUE_API_SECRET_KEY", "SENDBLUE_FROM_NUMBER",
+    "SENDBLUE_WEBHOOK_PUBLIC_URL", "SENDBLUE_WEBHOOK_SECRET",
+    "SENDBLUE_WEBHOOK_HOST", "SENDBLUE_WEBHOOK_PORT", "SENDBLUE_WEBHOOK_PATH",
+    "SENDBLUE_HOME_CHANNEL", "SENDBLUE_HOME_CHANNEL_NAME",
+    "SENDBLUE_ALLOWED_USERS", "SENDBLUE_GROUP_ALLOWED_USERS", "SENDBLUE_ALLOW_ALL_USERS",
     "QQ_APP_ID", "QQ_CLIENT_SECRET", "QQBOT_HOME_CHANNEL", "QQBOT_HOME_CHANNEL_NAME",
     "QQ_HOME_CHANNEL", "QQ_HOME_CHANNEL_NAME",  # legacy aliases (pre-rename, still read for back-compat)
     "QQ_ALLOWED_USERS", "QQ_GROUP_ALLOWED_USERS", "QQ_ALLOW_ALL_USERS", "QQ_MARKDOWN_SUPPORT",
@@ -1992,6 +1997,63 @@ OPTIONAL_ENV_VARS = {
     "BLUEBUBBLES_ALLOW_ALL_USERS": {
         "description": "Allow all BlueBubbles users without allowlist",
         "prompt": "Allow All BlueBubbles Users",
+        "category": "messaging",
+    },
+    "SENDBLUE_API_KEY_ID": {
+        "description": "Sendblue API Key ID (HTTP header sb-api-key-id)",
+        "prompt": "Sendblue API Key ID",
+        "url": "https://sendblue.com/",
+        "category": "messaging",
+    },
+    "SENDBLUE_API_SECRET_KEY": {
+        "description": "Sendblue API Secret Key (HTTP header sb-api-secret-key)",
+        "prompt": "Sendblue API Secret Key",
+        "password": True,
+        "category": "messaging",
+    },
+    "SENDBLUE_FROM_NUMBER": {
+        "description": "Sendblue sending number in E.164 format",
+        "prompt": "Sendblue from number",
+        "category": "messaging",
+    },
+    "SENDBLUE_WEBHOOK_PUBLIC_URL": {
+        "description": "Public HTTPS base URL for inbound webhooks (e.g. ngrok forwarding URL, no path)",
+        "prompt": "Sendblue public webhook URL (HTTPS)",
+        "url": "https://ngrok.com/",
+        "category": "messaging",
+    },
+    "SENDBLUE_WEBHOOK_SECRET": {
+        "description": "Optional secret to verify Sendblue sb-signing-secret header",
+        "prompt": "Sendblue webhook signing secret",
+        "password": True,
+        "category": "messaging",
+        "advanced": True,
+    },
+    "SENDBLUE_WEBHOOK_PORT": {
+        "description": "Local HTTP port for Sendblue inbound webhook listener (default 8646)",
+        "prompt": "Sendblue webhook port",
+        "category": "messaging",
+        "advanced": True,
+    },
+    "SENDBLUE_ALLOWED_USERS": {
+        "description": "Comma-separated E.164 phones allowed to use the bot",
+        "prompt": "Sendblue allowed users",
+        "category": "messaging",
+    },
+    "SENDBLUE_GROUP_ALLOWED_USERS": {
+        "description": "Comma-separated group chat IDs (sendblue:group:...) allowed",
+        "prompt": "Sendblue allowed groups",
+        "category": "messaging",
+        "advanced": True,
+    },
+    "SENDBLUE_ALLOW_ALL_USERS": {
+        "description": "Allow all Sendblue senders without allowlist",
+        "prompt": "Sendblue allow all users",
+        "category": "messaging",
+    },
+    "SENDBLUE_HOME_CHANNEL": {
+        "description": "Default destination for cron and notifications (E.164 or sendblue:group:...)",
+        "prompt": "Sendblue home channel",
         "category": "messaging",
     },
     "QQ_APP_ID": {

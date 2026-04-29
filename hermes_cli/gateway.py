@@ -2702,6 +2702,44 @@ _PLATFORMS = [
         ],
     },
     {
+        "key": "sendblue",
+        "label": "Sendblue (iMessage / SMS)",
+        "emoji": "💎",
+        "token_var": "SENDBLUE_API_KEY_ID",
+        "setup_instructions": [
+            "1. Create a Sendblue account and get API Key ID + Secret from the dashboard:",
+            "   https://sendblue.com/",
+            "2. Note your Sendblue phone number (E.164, e.g. +15551234567) as SENDBLUE_FROM_NUMBER",
+            "3. Start Hermes gateway webhook listener — default HTTP port is 8646 (SENDBLUE_WEBHOOK_PORT)",
+            "4. In another terminal, expose that port with HTTPS, e.g.: ngrok http 8646",
+            "5. Copy the ngrok **https** Forwarding URL (no path) into SENDBLUE_WEBHOOK_PUBLIC_URL",
+            "6. On gateway start, Hermes registers https://<your-ngrok>/sendblue-webhook with Sendblue",
+            "7. Optionally set SENDBLUE_WEBHOOK_SECRET to match your Sendblue webhook signing secret",
+        ],
+        "vars": [
+            {"name": "SENDBLUE_API_KEY_ID", "prompt": "Sendblue API Key ID", "password": False,
+             "help": "From Sendblue dashboard (header sb-api-key-id)."},
+            {"name": "SENDBLUE_API_SECRET_KEY", "prompt": "Sendblue API Secret Key", "password": True,
+             "help": "From Sendblue dashboard (header sb-api-secret-key)."},
+            {"name": "SENDBLUE_FROM_NUMBER", "prompt": "Sendblue from number (E.164, e.g. +15551234567)", "password": False,
+             "help": "Your Sendblue sending number."},
+            {"name": "SENDBLUE_WEBHOOK_PUBLIC_URL", "prompt": "Public HTTPS URL (ngrok forwarding base, no path)", "password": False,
+             "help": "Example: https://abc123.ngrok-free.app — Hermes appends /sendblue-webhook for registration."},
+            {"name": "SENDBLUE_WEBHOOK_SECRET", "prompt": "Webhook signing secret (optional, must match sb-signing-secret)", "password": True,
+             "help": "If unset, webhooks are accepted without signature verification (not recommended for production)."},
+            {"name": "SENDBLUE_WEBHOOK_PORT", "prompt": "Local webhook port (default 8646)", "password": False,
+             "help": "Port for aiohttp listener; ngrok should tunnel this port."},
+            {"name": "SENDBLUE_ALLOWED_USERS", "prompt": "Allowed phone numbers E.164 (comma-separated, or empty for pairing/open)", "password": False,
+             "is_allowlist": True,
+             "help": "Restrict who can use the bot via SMS/iMessage."},
+            {"name": "SENDBLUE_GROUP_ALLOWED_USERS", "prompt": "Allowed group IDs (comma-separated sendblue:group:..., or empty)", "password": False,
+             "is_allowlist": True,
+             "help": "Optional — restrict inbound group chats by Hermes chat id."},
+            {"name": "SENDBLUE_HOME_CHANNEL", "prompt": "Home channel (E.164 or sendblue:group:... for cron, or empty)", "password": False,
+             "help": "Default destination for cron / notifications."},
+        ],
+    },
+    {
         "key": "qqbot",
         "label": "QQ Bot",
         "emoji": "🐧",
@@ -2791,6 +2829,16 @@ def _platform_status(platform: dict) -> str:
         if val and token:
             return "configured"
         if val or token:
+            return "partially configured"
+        return "not configured"
+    if platform.get("key") == "sendblue":
+        sid = get_env_value("SENDBLUE_API_KEY_ID")
+        sec = get_env_value("SENDBLUE_API_SECRET_KEY")
+        fn = get_env_value("SENDBLUE_FROM_NUMBER")
+        pub = get_env_value("SENDBLUE_WEBHOOK_PUBLIC_URL")
+        if sid and sec and fn and pub:
+            return "configured"
+        if sid or sec or fn or pub:
             return "partially configured"
         return "not configured"
     if val:
@@ -3780,6 +3828,9 @@ def gateway_setup():
             _setup_feishu()
         elif platform["key"] == "qqbot":
             _setup_qqbot()
+        elif platform["key"] == "sendblue":
+            from hermes_cli.setup import _setup_sendblue
+            _setup_sendblue()
         elif platform["key"] == "wecom":
             _setup_wecom()
         else:

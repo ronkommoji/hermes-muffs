@@ -2216,6 +2216,72 @@ def _setup_bluebubbles():
     print_info("   Install: https://docs.bluebubbles.app/helper-bundle/installation")
 
 
+def _setup_sendblue():
+    """Configure Sendblue iMessage/SMS gateway (cloud API + ngrok webhook)."""
+    print_header("Sendblue (iMessage / SMS)")
+    existing = get_env_value("SENDBLUE_API_KEY_ID")
+    if existing:
+        print_info("Sendblue: already partially configured")
+        if not prompt_yes_no("Reconfigure Sendblue?", False):
+            return
+
+    print_info("Sendblue delivers iMessage/SMS via their API. You need:")
+    print_info("  • API Key ID + Secret from https://sendblue.com/ dashboard")
+    print_info("  • Your Sendblue number in E.164 (e.g. +15551234567)")
+    print_info("  • ngrok (or similar) exposing the local webhook port with HTTPS")
+    print()
+    print_info("1. Default local webhook port: 8646 (change with SENDBLUE_WEBHOOK_PORT)")
+    print_info("2. Run in another terminal: ngrok http 8646")
+    print_info("3. Paste the https Forwarding URL below (no path at the end)")
+    print()
+
+    key_id = prompt("Sendblue API Key ID")
+    if not key_id:
+        print_warning("API Key ID required — skipping Sendblue setup")
+        return
+    save_env_value("SENDBLUE_API_KEY_ID", key_id.strip())
+
+    secret = prompt("Sendblue API Secret Key", password=True)
+    if not secret:
+        print_warning("API Secret required — skipping Sendblue setup")
+        return
+    save_env_value("SENDBLUE_API_SECRET_KEY", secret)
+
+    from_num = prompt("Sendblue from number (E.164)")
+    if not from_num:
+        print_warning("From number required — skipping Sendblue setup")
+        return
+    save_env_value("SENDBLUE_FROM_NUMBER", from_num.strip())
+
+    pub = prompt("Public HTTPS URL (ngrok base, e.g. https://abc.ngrok-free.app)")
+    if not pub:
+        print_warning("Public URL required — Sendblue cannot reach localhost")
+        return
+    save_env_value("SENDBLUE_WEBHOOK_PUBLIC_URL", pub.strip().rstrip("/"))
+    print_success("Sendblue credentials saved")
+
+    wh_secret = prompt("Webhook signing secret (optional; matches Sendblue sb-signing-secret)", password=True)
+    if wh_secret:
+        save_env_value("SENDBLUE_WEBHOOK_SECRET", wh_secret)
+
+    print()
+    print_info("Optional: allowlist phone numbers (E.164, comma-separated). Empty uses gateway defaults / pairing.")
+    allowed = prompt("Allowed users (comma-separated, or empty)")
+    if allowed:
+        save_env_value("SENDBLUE_ALLOWED_USERS", allowed.replace(" ", ""))
+
+    home = prompt("Home channel for cron (E.164 or sendblue:group:..., or empty)")
+    if home:
+        save_env_value("SENDBLUE_HOME_CHANNEL", home.strip())
+
+    port = prompt("Webhook listen port (default 8646, or empty for default)")
+    if port.strip():
+        try:
+            save_env_value("SENDBLUE_WEBHOOK_PORT", str(int(port)))
+        except ValueError:
+            print_warning("Invalid port, using default 8646")
+
+
 def _setup_qqbot():
     """Configure QQ Bot (Official API v2) via gateway setup."""
     from hermes_cli.gateway import _setup_qqbot as _gateway_setup_qqbot
@@ -2286,6 +2352,7 @@ _GATEWAY_PLATFORMS = [
     ("WeCom Callback (Self-Built App)", "WECOM_CALLBACK_CORP_ID", _setup_wecom_callback),
     ("Weixin (WeChat)", "WEIXIN_ACCOUNT_ID", _setup_weixin),
     ("BlueBubbles (iMessage)", "BLUEBUBBLES_SERVER_URL", _setup_bluebubbles),
+    ("Sendblue (iMessage / SMS)", "SENDBLUE_API_KEY_ID", _setup_sendblue),
     ("QQ Bot", "QQ_APP_ID", _setup_qqbot),
     ("Webhooks (GitHub, GitLab, etc.)", "WEBHOOK_ENABLED", _setup_webhooks),
 ]
@@ -2338,6 +2405,7 @@ def setup_gateway(config: dict):
         or get_env_value("WECOM_BOT_ID")
         or get_env_value("WEIXIN_ACCOUNT_ID")
         or get_env_value("BLUEBUBBLES_SERVER_URL")
+        or get_env_value("SENDBLUE_API_KEY_ID")
         or get_env_value("QQ_APP_ID")
         or get_env_value("WEBHOOK_ENABLED")
     )
@@ -2360,6 +2428,8 @@ def setup_gateway(config: dict):
             missing_home.append("Slack")
         if get_env_value("BLUEBUBBLES_SERVER_URL") and not get_env_value("BLUEBUBBLES_HOME_CHANNEL"):
             missing_home.append("BlueBubbles")
+        if get_env_value("SENDBLUE_API_KEY_ID") and not get_env_value("SENDBLUE_HOME_CHANNEL"):
+            missing_home.append("Sendblue")
         if get_env_value("QQ_APP_ID") and not (
             get_env_value("QQBOT_HOME_CHANNEL") or get_env_value("QQ_HOME_CHANNEL")
         ):

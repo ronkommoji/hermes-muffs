@@ -66,6 +66,7 @@ class Platform(Enum):
     WECOM_CALLBACK = "wecom_callback"
     WEIXIN = "weixin"
     BLUEBUBBLES = "bluebubbles"
+    SENDBLUE = "sendblue"
     QQBOT = "qqbot"
     YUANBAO = "yuanbao"
 
@@ -329,6 +330,13 @@ class GatewayConfig:
                 connected.append(platform)
             # Yuanbao uses extra dict for app credentials
             elif platform == Platform.YUANBAO and config.extra.get("app_id") and config.extra.get("app_secret"):
+                connected.append(platform)
+            # Sendblue — API key id + secret + from_number in extra
+            elif platform == Platform.SENDBLUE and (
+                config.extra.get("api_key_id")
+                and config.extra.get("api_secret_key")
+                and config.extra.get("from_number")
+            ):
                 connected.append(platform)
             # DingTalk uses client_id/client_secret from config.extra or env vars
             elif platform == Platform.DINGTALK and (
@@ -1356,6 +1364,39 @@ def _apply_env_overrides(config: GatewayConfig) -> None:
         yuanbao_group_allow_from = os.getenv("YUANBAO_GROUP_ALLOW_FROM")
         if yuanbao_group_allow_from:
             extra["group_allow_from"] = yuanbao_group_allow_from
+
+    # Sendblue (iMessage/SMS via Sendblue API + inbound webhooks)
+    sendblue_key_id = os.getenv("SENDBLUE_API_KEY_ID", "").strip()
+    sendblue_secret = os.getenv("SENDBLUE_API_SECRET_KEY", "").strip()
+    if sendblue_key_id and sendblue_secret:
+        if Platform.SENDBLUE not in config.platforms:
+            config.platforms[Platform.SENDBLUE] = PlatformConfig()
+        config.platforms[Platform.SENDBLUE].enabled = True
+        sb_extra = config.platforms[Platform.SENDBLUE].extra
+        sb_extra["api_key_id"] = sendblue_key_id
+        sb_extra["api_secret_key"] = sendblue_secret
+        sb_from = os.getenv("SENDBLUE_FROM_NUMBER", "").strip()
+        if sb_from:
+            sb_extra["from_number"] = sb_from
+        sb_pub = os.getenv("SENDBLUE_WEBHOOK_PUBLIC_URL", "").strip().rstrip("/")
+        if sb_pub:
+            sb_extra["webhook_public_url"] = sb_pub
+        sb_extra["webhook_host"] = os.getenv("SENDBLUE_WEBHOOK_HOST", "0.0.0.0")
+        try:
+            sb_extra["webhook_port"] = int(os.getenv("SENDBLUE_WEBHOOK_PORT", "8646"))
+        except ValueError:
+            sb_extra["webhook_port"] = 8646
+        sb_extra["webhook_path"] = os.getenv("SENDBLUE_WEBHOOK_PATH", "/sendblue-webhook")
+        sb_wh_secret = os.getenv("SENDBLUE_WEBHOOK_SECRET", "").strip()
+        if sb_wh_secret:
+            sb_extra["webhook_secret"] = sb_wh_secret
+        sendblue_home = os.getenv("SENDBLUE_HOME_CHANNEL", "").strip()
+        if sendblue_home:
+            config.platforms[Platform.SENDBLUE].home_channel = HomeChannel(
+                platform=Platform.SENDBLUE,
+                chat_id=sendblue_home,
+                name=os.getenv("SENDBLUE_HOME_CHANNEL_NAME", "Home"),
+            )
 
     # Session settings
     idle_minutes = os.getenv("SESSION_IDLE_MINUTES")

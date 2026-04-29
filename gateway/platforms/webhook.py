@@ -220,6 +220,7 @@ class WebhookAdapter(BasePlatformAdapter):
             "wecom_callback",
             "weixin",
             "bluebubbles",
+            "sendblue",
             "qqbot",
         ):
             return await self._deliver_cross_platform(
