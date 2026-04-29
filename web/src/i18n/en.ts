@@ -72,6 +72,7 @@ export const en: Translations = {
       config: "Config",
       cron: "Cron",
       documentation: "Documentation",
+      integrations: "Integrations",
       keys: "Keys",
       logs: "Logs",
       sessions: "Sessions",
@@ -327,6 +328,60 @@ export const en: Translations = {
       external: "External CLI",
     },
     expiresIn: "expires in {time}",
+  },
+
+  integrations: {
+    subtitle:
+      "Connect Gmail, Calendar, Drive (google-workspace skill), GitHub, and MCP servers. Uses your active Hermes profile.",
+    googleTitle: "Google Workspace",
+    googleBlurb:
+      "One-time Google Cloud project: Desktop OAuth client JSON → consent → token saved for the google-workspace skill.",
+    googleStep1: "In Google Cloud Console, enable Gmail, Calendar, Drive, Sheets, Docs, and People APIs.",
+    googleStep2: 'Create an OAuth 2.0 Client ID with type "Desktop app" and download the JSON.',
+    googleStep3:
+      "Paste the full JSON below (or upload contents). Then open the consent link and paste the code you get back.",
+    googleSecretLabel: "OAuth client JSON",
+    googleSecretHelp: "Paste the downloaded client_secret / credentials JSON here.",
+    googleSaveSecret: "Save client JSON",
+    googleGetLink: "Create consent link",
+    googleOpenConsent: "Open Google consent",
+    googleCodeLabel: "Code or redirect URL",
+    googleCodeHelp:
+      "After signing in, paste either the authorization code or the full redirect URL from your browser.",
+    googleFinish: "Save token",
+    googleRevoke: "Disconnect Google",
+    googleRevokeConfirm:
+      "Disconnect Google Workspace? Hermes will delete the stored token for this profile.",
+    googleStatusOk: "Connected",
+    googleStatusPartial: "Connected (some scopes missing)",
+    googleStatusNeedSecret: "Needs OAuth client JSON",
+    githubTitle: "GitHub",
+    githubBlurb:
+      "Save a personal access token for git, gh, and API-based workflows. You can also use the gh CLI on the server.",
+    githubStep1: "Create a token with repo (and workflow/org scopes if needed).",
+    githubPatLabel: "Personal access token",
+    githubSavePat: "Save token to Keys",
+    githubStatusOk: "GitHub ready (CLI or token)",
+    githubStatusCli: "Authenticated via gh CLI",
+    githubStatusToken: "GITHUB_TOKEN set in Keys",
+    githubStatusNone: "Not connected",
+    googleNotSignedIn: "Client saved — complete consent below",
+    googleAuthOpened: "Opened Google consent in a new tab",
+    googleAuthLinkCopied: "Authorization URL copied to clipboard",
+    mcpTitle: "MCP servers",
+    mcpBlurb:
+      "Model Context Protocol tools are defined under mcp_servers in config.yaml.",
+    mcpConfigured: "MCP configured",
+    mcpCount: "{count} servers in config",
+    mcpOpenYaml: "Open raw config",
+    moreTitle: "More in dashboard",
+    moreBlurb: "LLM OAuth lives on Keys. Enable skills under Skills.",
+    moreOAuthCard: "Provider OAuth (Claude, Nous, Codex…)",
+    moreSkillsCard: "Skills catalog",
+    linkConsole: "Google Cloud Console",
+    linkPat: "GitHub tokens",
+    copiedUrl: "Link opened in a new tab",
+    saveFailed: "Request failed",
   },
 
   language: {

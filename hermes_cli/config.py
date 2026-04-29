@@ -71,9 +71,11 @@ _EXTRA_ENV_KEYS = frozenset({
     "BLUEBUBBLES_HOME_CHANNEL", "BLUEBUBBLES_HOME_CHANNEL_NAME",
     "SENDBLUE_API_KEY_ID", "SENDBLUE_API_SECRET_KEY", "SENDBLUE_FROM_NUMBER",
     "SENDBLUE_WEBHOOK_PUBLIC_URL", "SENDBLUE_WEBHOOK_SECRET",
+    "SENDBLUE_AUTO_NGROK", "SENDBLUE_NGROK_API", "SENDBLUE_NGROK_BIN",
     "SENDBLUE_WEBHOOK_HOST", "SENDBLUE_WEBHOOK_PORT", "SENDBLUE_WEBHOOK_PATH",
     "SENDBLUE_HOME_CHANNEL", "SENDBLUE_HOME_CHANNEL_NAME",
     "SENDBLUE_ALLOWED_USERS", "SENDBLUE_GROUP_ALLOWED_USERS", "SENDBLUE_ALLOW_ALL_USERS",
+    "SENDBLUE_REACTIONS",
     "QQ_APP_ID", "QQ_CLIENT_SECRET", "QQBOT_HOME_CHANNEL", "QQBOT_HOME_CHANNEL_NAME",
     "QQ_HOME_CHANNEL", "QQ_HOME_CHANNEL_NAME",  # legacy aliases (pre-rename, still read for back-compat)
     "QQ_ALLOWED_USERS", "QQ_GROUP_ALLOWED_USERS", "QQ_ALLOW_ALL_USERS", "QQ_MARKDOWN_SUPPORT",
@@ -2017,10 +2019,28 @@ OPTIONAL_ENV_VARS = {
         "category": "messaging",
     },
     "SENDBLUE_WEBHOOK_PUBLIC_URL": {
-        "description": "Public HTTPS base URL for inbound webhooks (e.g. ngrok forwarding URL, no path)",
+        "description": "Public HTTPS base URL for inbound webhooks (e.g. ngrok forwarding URL, no path). Optional when SENDBLUE_AUTO_NGROK=true",
         "prompt": "Sendblue public webhook URL (HTTPS)",
         "url": "https://ngrok.com/",
         "category": "messaging",
+    },
+    "SENDBLUE_AUTO_NGROK": {
+        "description": "When true, Hermes starts/listens via ngrok local API and sets the public webhook URL automatically (requires ngrok on PATH)",
+        "prompt": "Auto-start ngrok for Sendblue webhooks",
+        "category": "messaging",
+        "advanced": True,
+    },
+    "SENDBLUE_NGROK_API": {
+        "description": "ngrok local web API base URL (default http://127.0.0.1:4040)",
+        "prompt": "Sendblue ngrok API base URL",
+        "category": "messaging",
+        "advanced": True,
+    },
+    "SENDBLUE_NGROK_BIN": {
+        "description": "Path to ngrok binary (default: ngrok)",
+        "prompt": "Sendblue ngrok executable",
+        "category": "messaging",
+        "advanced": True,
     },
     "SENDBLUE_WEBHOOK_SECRET": {
         "description": "Optional secret to verify Sendblue sb-signing-secret header",
@@ -2050,6 +2070,12 @@ OPTIONAL_ENV_VARS = {
         "description": "Allow all Sendblue senders without allowlist",
         "prompt": "Sendblue allow all users",
         "category": "messaging",
+    },
+    "SENDBLUE_REACTIONS": {
+        "description": "Send iMessage tapbacks while the agent processes (emphasize → like/dislike); iMessage only",
+        "prompt": "Sendblue processing tapbacks (true/false)",
+        "category": "messaging",
+        "advanced": True,
     },
     "SENDBLUE_HOME_CHANNEL": {
         "description": "Default destination for cron and notifications (E.164 or sendblue:group:...)",

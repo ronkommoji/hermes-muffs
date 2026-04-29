@@ -738,6 +738,18 @@ def load_gateway_config() -> GatewayConfig:
                         plat_data["extra"] = extra
                     extra["disable_link_previews"] = telegram_cfg["disable_link_previews"]
 
+            # Sendblue settings → env vars (env vars take precedence)
+            sendblue_cfg = yaml_cfg.get("sendblue", {})
+            if isinstance(sendblue_cfg, dict):
+                if "reactions" in sendblue_cfg and not os.getenv("SENDBLUE_REACTIONS"):
+                    os.environ["SENDBLUE_REACTIONS"] = str(
+                        sendblue_cfg["reactions"]
+                    ).lower()
+                if "auto_ngrok" in sendblue_cfg and not os.getenv("SENDBLUE_AUTO_NGROK"):
+                    os.environ["SENDBLUE_AUTO_NGROK"] = str(
+                        sendblue_cfg["auto_ngrok"]
+                    ).lower()
+
             whatsapp_cfg = yaml_cfg.get("whatsapp", {})
             if isinstance(whatsapp_cfg, dict):
                 if "require_mention" in whatsapp_cfg and not os.getenv("WHATSAPP_REQUIRE_MENTION"):

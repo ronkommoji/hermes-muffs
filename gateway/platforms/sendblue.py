@@ -2,8 +2,10 @@
 
 Uses the Sendblue cloud API (https://api.sendblue.co) for outbound messages and
 an aiohttp webhook for inbound ``receive`` events. Inbound delivery requires a
-public HTTPS URL — ngrok is the documented approach. On connect, Hermes
-registers the full webhook URL with Sendblue via ``POST /api/account/webhooks``.
+public HTTPS URL — use ``SENDBLUE_WEBHOOK_PUBLIC_URL`` or
+``SENDBLUE_AUTO_NGROK`` to run (or attach to) ngrok and discover the URL from
+the ngrok agent API. On connect, Hermes registers the full webhook URL with
+Sendblue via ``POST /api/account/webhooks``.
 """
 
 from __future__ import annotations
@@ -22,6 +24,7 @@ from gateway.platforms.base import (
     BasePlatformAdapter,
     MessageEvent,
     MessageType,
+    ProcessingOutcome,
     SendResult,
     cache_audio_from_bytes,
     cache_document_from_bytes,
@@ -59,6 +62,53 @@ def _is_https_url(url: str) -> bool:
 
 def _normalize_public_url(raw: str) -> str:
     return (raw or "").strip().rstrip("/")
+
+
+def _truthy_env(key: str) -> bool:
+    return os.getenv(key, "").strip().lower() in ("1", "true", "yes", "on")
+
+
+def pick_ngrok_https_public_url(tunnels_payload: Any, local_port: int) -> Optional[str]:
+    """Parse ngrok agent ``GET /api/tunnels`` JSON and return a matching https public URL.
+
+    Prefer the tunnel whose ``config.addr`` (or similar) forwards to *local_port*.
+    If none match but there is exactly one https tunnel, use that.
+    """
+    if not isinstance(tunnels_payload, dict):
+        return None
+    tunnels = tunnels_payload.get("tunnels")
+    if not isinstance(tunnels, list):
+        return None
+    port_fragment = f":{local_port}"
+    matching: List[str] = []
+    fallback_https: List[str] = []
+    for t in tunnels:
+        if not isinstance(t, dict):
+            continue
+        if (t.get("proto") or "").lower() != "https":
+            continue
+        pub = (t.get("public_url") or "").strip()
+        if not pub:
+            continue
+        cfg = t.get("config")
+        addr = ""
+        if isinstance(cfg, dict):
+            addr = str(cfg.get("addr") or "")
+        forward = str(
+            t.get("forwards_to")
+            or t.get("forwarding_to")
+            or t.get("forward_addr")
+            or ""
+        )
+        if port_fragment in addr or port_fragment in forward:
+            matching.append(pub)
+        else:
+            fallback_https.append(pub)
+    if matching:
+        return _normalize_public_url(matching[0])
+    if len(fallback_https) == 1:
+        return _normalize_public_url(fallback_https[0])
+    return None
 
 
 class SendblueAdapter(BasePlatformAdapter):
@@ -102,6 +152,26 @@ class SendblueAdapter(BasePlatformAdapter):
         self._http: Optional[httpx.AsyncClient] = None
         self._runner = None
         self._seen_handles: Set[str] = set()
+        self._ngrok_proc: Any = None
+        self._ngrok_owned = False
+
+    @staticmethod
+    def _reactions_enabled() -> bool:
+        return os.getenv("SENDBLUE_REACTIONS", "false").lower() not in (
+            "false",
+            "0",
+            "no",
+        )
+
+    @staticmethod
+    def _is_imessage_service(raw: Any) -> bool:
+        """Tapbacks apply to iMessage only, not SMS."""
+        if not isinstance(raw, dict):
+            return True
+        svc = str(raw.get("service") or "").strip().upper()
+        if not svc:
+            return True
+        return svc != "SMS"
 
     @property
     def _receive_url(self) -> str:
@@ -121,13 +191,21 @@ class SendblueAdapter(BasePlatformAdapter):
         if not self._from_number:
             logger.error("[sendblue] SENDBLUE_FROM_NUMBER is required")
             return False
-        if not self._public_url:
-            logger.error(
-                "[sendblue] SENDBLUE_WEBHOOK_PUBLIC_URL is required "
-                "(use an HTTPS tunnel URL, e.g. ngrok Forwarding URL)"
-            )
-            return False
-        if not _is_https_url(self._public_url):
+
+        auto_ngrok = _truthy_env("SENDBLUE_AUTO_NGROK")
+        if not auto_ngrok:
+            if not self._public_url:
+                logger.error(
+                    "[sendblue] SENDBLUE_WEBHOOK_PUBLIC_URL is required "
+                    "(or set SENDBLUE_AUTO_NGROK=true to start ngrok and discover the URL)"
+                )
+                return False
+            if not _is_https_url(self._public_url):
+                logger.error(
+                    "[sendblue] SENDBLUE_WEBHOOK_PUBLIC_URL must be an https:// URL (Sendblue webhook policy)"
+                )
+                return False
+        elif self._public_url and not _is_https_url(self._public_url):
             logger.error(
                 "[sendblue] SENDBLUE_WEBHOOK_PUBLIC_URL must be an https:// URL (Sendblue webhook policy)"
             )
@@ -141,13 +219,8 @@ class SendblueAdapter(BasePlatformAdapter):
             return False
 
         self._http = httpx.AsyncClient(timeout=30.0)
-        if not self._skip_register:
-            ok = await self._register_receive_webhook()
-            if not ok:
-                await self._http.aclose()
-                self._http = None
-                self._release_platform_lock()
-                return False
+        self._ngrok_proc = None
+        self._ngrok_owned = False
 
         from aiohttp import web
 
@@ -156,9 +229,49 @@ class SendblueAdapter(BasePlatformAdapter):
         app.router.add_post(self._webhook_path, self._handle_webhook)
 
         self._runner = web.AppRunner(app)
-        await self._runner.setup()
-        site = web.TCPSite(self._runner, self._webhook_host, self._webhook_port)
-        await site.start()
+        try:
+            await self._runner.setup()
+            site = web.TCPSite(self._runner, self._webhook_host, self._webhook_port)
+            await site.start()
+        except OSError as exc:
+            logger.error(
+                "[sendblue] cannot bind webhook listener %s:%s — %s",
+                self._webhook_host,
+                self._webhook_port,
+                exc,
+            )
+            await self._runner.cleanup()
+            self._runner = None
+            await self._http.aclose()
+            self._http = None
+            self._release_platform_lock()
+            return False
+
+        try:
+            if auto_ngrok:
+                discovered = await self._ensure_ngrok_public_url()
+                if not discovered:
+                    raise RuntimeError("ngrok_public_url")
+                self._public_url = discovered
+                logger.info("[sendblue] public webhook base URL: %s", self._public_url)
+            elif not _is_https_url(self._public_url):
+                raise RuntimeError("bad_public_url")
+
+            if not self._skip_register:
+                ok = await self._register_receive_webhook()
+                if not ok:
+                    raise RuntimeError("webhook_register")
+        except RuntimeError:
+            await self._teardown_ngrok_child()
+            if self._runner:
+                await self._runner.cleanup()
+                self._runner = None
+            if self._http:
+                await self._http.aclose()
+                self._http = None
+            self._release_platform_lock()
+            return False
+
         self._mark_connected()
         logger.info(
             "[sendblue] webhook listening on http://%s:%s%s (public %s)",
@@ -168,6 +281,99 @@ class SendblueAdapter(BasePlatformAdapter):
             self._receive_url,
         )
         return True
+
+    async def _ngrok_fetch_tunnels_json(self, api_base: str) -> Optional[dict]:
+        assert self._http is not None
+        try:
+            resp = await self._http.get(f"{api_base}/api/tunnels", timeout=2.0)
+        except Exception:
+            return None
+        if resp.status_code != 200:
+            return None
+        try:
+            data = resp.json()
+        except json.JSONDecodeError:
+            return None
+        return data if isinstance(data, dict) else None
+
+    async def _ensure_ngrok_public_url(self) -> Optional[str]:
+        """Use a running ngrok agent or spawn ``ngrok http 127.0.0.1:<port>`` and read the HTTPS URL."""
+        api_base = _normalize_public_url(
+            os.getenv("SENDBLUE_NGROK_API", "http://127.0.0.1:4040")
+        )
+        if not api_base.lower().startswith("http"):
+            api_base = f"http://{api_base}"
+        ngrok_bin = (os.getenv("SENDBLUE_NGROK_BIN", "ngrok") or "ngrok").strip()
+        if not ngrok_bin:
+            ngrok_bin = "ngrok"
+
+        for _ in range(20):
+            payload = await self._ngrok_fetch_tunnels_json(api_base)
+            if payload:
+                url = pick_ngrok_https_public_url(payload, self._webhook_port)
+                if url:
+                    return url
+            await asyncio.sleep(0.25)
+
+        logger.info(
+            "[sendblue] starting %s http 127.0.0.1:%s (SENDBLUE_AUTO_NGROK)",
+            ngrok_bin,
+            self._webhook_port,
+        )
+        try:
+            proc = await asyncio.create_subprocess_exec(
+                ngrok_bin,
+                "http",
+                f"127.0.0.1:{self._webhook_port}",
+                stdout=asyncio.subprocess.DEVNULL,
+                stderr=asyncio.subprocess.DEVNULL,
+            )
+        except FileNotFoundError:
+            logger.error(
+                "[sendblue] ngrok executable not found (%r). Install ngrok or set SENDBLUE_NGROK_BIN.",
+                ngrok_bin,
+            )
+            return None
+        self._ngrok_proc = proc
+        self._ngrok_owned = True
+
+        for _ in range(120):
+            await asyncio.sleep(0.25)
+            if proc.returncode is not None:
+                logger.error(
+                    "[sendblue] ngrok exited early with code %s",
+                    proc.returncode,
+                )
+                return None
+            payload = await self._ngrok_fetch_tunnels_json(api_base)
+            if payload:
+                url = pick_ngrok_https_public_url(payload, self._webhook_port)
+                if url:
+                    return url
+
+        logger.error(
+            "[sendblue] timed out waiting for ngrok HTTPS URL (%s/api/tunnels)",
+            api_base,
+        )
+        return None
+
+    async def _teardown_ngrok_child(self) -> None:
+        proc = self._ngrok_proc
+        if not self._ngrok_owned or proc is None:
+            self._ngrok_proc = None
+            self._ngrok_owned = False
+            return
+        try:
+            proc.terminate()
+            try:
+                await asyncio.wait_for(proc.wait(), timeout=5.0)
+            except asyncio.TimeoutError:
+                proc.kill()
+                await proc.wait()
+        except Exception:
+            pass
+        self._ngrok_proc = None
+        self._ngrok_owned = False
 
     async def _register_receive_webhook(self) -> bool:
         assert self._http is not None
@@ -195,6 +401,7 @@ class SendblueAdapter(BasePlatformAdapter):
         if self._runner:
             await self._runner.cleanup()
             self._runner = None
+        await self._teardown_ngrok_child()
         if self._http:
             await self._http.aclose()
             self._http = None
@@ -263,6 +470,86 @@ class SendblueAdapter(BasePlatformAdapter):
         if chat_id.startswith(GROUP_PREFIX):
             return {"name": chat_id, "type": "group", "chat_id": chat_id}
         return {"name": redact_phone(chat_id), "type": "dm", "chat_id": chat_id}
+
+    async def send_typing(self, chat_id: str, metadata=None) -> None:
+        """Show the iMessage/SMS typing indicator (DM only; groups not supported)."""
+        client = self._http
+        if not client or not self._from_number:
+            return
+        if chat_id.startswith(GROUP_PREFIX):
+            logger.debug(
+                "[sendblue] skip typing for group chat (API is recipient-number scoped)"
+            )
+            return
+        body: Dict[str, Any] = {
+            "from_number": self._from_number,
+            "number": chat_id,
+            "status": "typing",
+        }
+        try:
+            resp = await client.post(
+                f"{SENDBLUE_API_BASE}/api/send-typing-indicator",
+                headers=self._headers(),
+                json=body,
+                timeout=5.0,
+            )
+            if resp.status_code >= 400:
+                logger.debug(
+                    "[sendblue] typing indicator HTTP %s: %s",
+                    resp.status_code,
+                    resp.text[:200],
+                )
+        except Exception as exc:
+            logger.debug("[sendblue] typing indicator failed: %s", exc)
+
+    async def _send_reaction(self, message_handle: str, reaction: str) -> None:
+        client = self._http
+        if not client or not message_handle:
+            return
+        body = {
+            "from_number": self._from_number,
+            "message_handle": message_handle,
+            "reaction": reaction,
+        }
+        try:
+            resp = await client.post(
+                f"{SENDBLUE_API_BASE}/api/send-reaction",
+                headers=self._headers(),
+                json=body,
+                timeout=10.0,
+            )
+            if resp.status_code >= 400:
+                logger.debug(
+                    "[sendblue] reaction HTTP %s: %s",
+                    resp.status_code,
+                    resp.text[:200],
+                )
+        except Exception as exc:
+            logger.debug("[sendblue] reaction failed: %s", exc)
+
+    async def on_processing_start(self, event: MessageEvent) -> None:
+        if not self._reactions_enabled():
+            return
+        if not self._is_imessage_service(event.raw_message):
+            return
+        mid = event.message_id
+        if not mid:
+            return
+        # Tapback “emphasize” (‼️) — in-progress, analogous to Telegram 👀
+        await self._send_reaction(mid, "emphasize")
+
+    async def on_processing_complete(
+        self, event: MessageEvent, outcome: ProcessingOutcome
+    ) -> None:
+        if not self._reactions_enabled():
+            return
+        if not self._is_imessage_service(event.raw_message):
+            return
+        mid = event.message_id
+        if not mid or outcome == ProcessingOutcome.CANCELLED:
+            return
+        reaction = "like" if outcome == ProcessingOutcome.SUCCESS else "dislike"
+        await self._send_reaction(mid, reaction)
 
     def _verify_webhook_secret(self, request) -> bool:
         if not self._webhook_secret:

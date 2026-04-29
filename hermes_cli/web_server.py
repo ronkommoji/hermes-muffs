@@ -46,6 +46,13 @@ from hermes_cli.config import (
     check_config_version,
     redact_key,
 )
+from hermes_cli.dashboard_integrations import (
+    google_workspace_begin_oauth,
+    google_workspace_exchange_code,
+    google_workspace_revoke,
+    google_workspace_store_client_secret_json,
+    integrations_snapshot,
+)
 from gateway.status import get_running_pid, read_runtime_status
 
 try:
@@ -432,6 +439,21 @@ class EnvVarDelete(BaseModel):
 
 class EnvVarReveal(BaseModel):
     key: str
+
+
+class GoogleWorkspaceClientSecretBody(BaseModel):
+    """Desktop or web OAuth client JSON from Google Cloud Console."""
+
+    client_secret_json: Optional[Dict[str, Any]] = None
+    raw_json: Optional[str] = None
+
+
+class GoogleWorkspaceExchangeBody(BaseModel):
+    code: str
+
+
+class GitHubPatBody(BaseModel):
+    token: str
 
 
 _GATEWAY_HEALTH_URL = os.getenv("GATEWAY_HEALTH_URL")
@@ -1044,6 +1066,85 @@ async def reveal_env_var(body: EnvVarReveal, request: Request):
 
     _log.info("env/reveal: %s", body.key)
     return {"key": body.key, "value": value}
+
+
+# ---------------------------------------------------------------------------
+# Integrations — Google Workspace (skill OAuth), GitHub PAT, MCP summary
+# ---------------------------------------------------------------------------
+
+
+@app.get("/api/integrations")
+async def get_integrations():
+    """Third-party integration status for the active Hermes profile."""
+    return integrations_snapshot(PROJECT_ROOT)
+
+
+@app.post("/api/integrations/google/client-secret")
+async def integrations_google_client_secret(
+    body: GoogleWorkspaceClientSecretBody,
+    request: Request,
+):
+    _require_token(request)
+    obj: Optional[Dict[str, Any]] = body.client_secret_json
+    if obj is None and body.raw_json:
+        try:
+            obj = json.loads(body.raw_json)
+        except json.JSONDecodeError:
+            raise HTTPException(status_code=400, detail="raw_json is not valid JSON")
+    if not isinstance(obj, dict):
+        raise HTTPException(
+            status_code=400,
+            detail="Provide client_secret_json or raw_json (OAuth client JSON).",
+        )
+    result = google_workspace_store_client_secret_json(PROJECT_ROOT, obj)
+    if not result.get("ok"):
+        raise HTTPException(status_code=400, detail=result.get("error", "Failed"))
+    return result
+
+
+@app.post("/api/integrations/google/auth-url")
+async def integrations_google_auth_url(request: Request):
+    """Build Google OAuth consent URL (requires client secret on disk)."""
+    _require_token(request)
+    result = google_workspace_begin_oauth(PROJECT_ROOT)
+    if not result.get("ok"):
+        raise HTTPException(status_code=400, detail=result.get("error", "Failed"))
+    return result
+
+
+@app.post("/api/integrations/google/exchange")
+async def integrations_google_exchange(
+    body: GoogleWorkspaceExchangeBody,
+    request: Request,
+):
+    """Exchange pasted authorization code or full redirect URL for tokens."""
+    _require_token(request)
+    result = google_workspace_exchange_code(PROJECT_ROOT, body.code)
+    if not result.get("ok"):
+        raise HTTPException(status_code=400, detail=result.get("error", "Failed"))
+    return result
+
+
+@app.post("/api/integrations/google/revoke")
+async def integrations_google_revoke(request: Request):
+    _require_token(request)
+    return google_workspace_revoke(PROJECT_ROOT)
+
+
+@app.post("/api/integrations/github/token")
+async def integrations_github_token(body: GitHubPatBody, request: Request):
+    """Store a GitHub PAT in ~/.hermes/.env as GITHUB_TOKEN."""
+    _require_token(request)
+    tok = (body.token or "").strip()
+    if not tok:
+        raise HTTPException(status_code=400, detail="Token is empty")
+    try:
+        save_env_value("GITHUB_TOKEN", tok)
+        _log.info("integrations/github: saved GITHUB_TOKEN")
+        return {"ok": True, "key": "GITHUB_TOKEN"}
+    except Exception as e:
+        _log.exception("integrations/github/token failed")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # ---------------------------------------------------------------------------

@@ -192,6 +192,54 @@ export const api = {
     );
   },
 
+  // Third-party integrations (Google Workspace skill OAuth, …)
+  getIntegrations: () => fetchJSON<IntegrationsResponse>("/api/integrations"),
+  saveGoogleWorkspaceClientSecret: (raw_json: string) =>
+    fetchJSON<{ ok: boolean; message?: string }>(
+      "/api/integrations/google/client-secret",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ raw_json }),
+      },
+    ),
+  getGoogleWorkspaceAuthUrl: () =>
+    fetchJSON<{ ok: boolean; auth_url: string }>(
+      "/api/integrations/google/auth-url",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: "{}",
+      },
+    ),
+  finishGoogleWorkspaceOAuth: (code: string) =>
+    fetchJSON<{ ok: boolean; message?: string }>(
+      "/api/integrations/google/exchange",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code }),
+      },
+    ),
+  revokeGoogleWorkspace: () =>
+    fetchJSON<{ ok: boolean; message?: string; exit_code?: number }>(
+      "/api/integrations/google/revoke",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: "{}",
+      },
+    ),
+  saveGitHubPat: (token: string) =>
+    fetchJSON<{ ok: boolean; key: string }>(
+      "/api/integrations/github/token",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token }),
+      },
+    ),
+
   // Gateway / update actions
   restartGateway: () =>
     fetchJSON<ActionResponse>("/api/gateway/restart", { method: "POST" }),
@@ -487,6 +535,38 @@ export interface OAuthPollResponse {
   status: "pending" | "approved" | "denied" | "expired" | "error";
   error_message?: string | null;
   expires_at?: number | null;
+}
+
+// ── Integrations (Google Workspace skill, GitHub, MCP) ───────────────────
+
+export interface IntegrationsGoogleWorkspace {
+  authenticated: boolean;
+  partial_scopes: boolean;
+  has_client_secret: boolean;
+  has_token_file: boolean;
+  pending_oauth: boolean;
+  check_exit_code: number;
+  detail: string | null;
+}
+
+export interface IntegrationsGitHub {
+  connected: boolean;
+  gh_cli_authenticated: boolean;
+  token_in_env: boolean;
+  gh_hint: string | null;
+}
+
+export interface IntegrationsMcp {
+  configured: boolean;
+  server_count: number;
+  server_names: string[];
+  error?: string;
+}
+
+export interface IntegrationsResponse {
+  google_workspace: IntegrationsGoogleWorkspace;
+  github: IntegrationsGitHub;
+  mcp: IntegrationsMcp;
 }
 
 // ── Dashboard theme types ──────────────────────────────────────────────

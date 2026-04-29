@@ -30,6 +30,7 @@ import {
   Menu,
   MessageSquare,
   Package,
+  Plug,
   Puzzle,
   RotateCw,
   Settings,
@@ -58,6 +59,7 @@ import type { SystemAction } from "@/contexts/system-actions-context";
 import ConfigPage from "@/pages/ConfigPage";
 import DocsPage from "@/pages/DocsPage";
 import EnvPage from "@/pages/EnvPage";
+import IntegrationsPage from "@/pages/IntegrationsPage";
 import SessionsPage from "@/pages/SessionsPage";
 import LogsPage from "@/pages/LogsPage";
 import AnalyticsPage from "@/pages/AnalyticsPage";
@@ -101,6 +103,7 @@ const BUILTIN_ROUTES_CORE: Record<string, ComponentType> = {
   "/skills": SkillsPage,
   "/config": ConfigPage,
   "/env": EnvPage,
+  "/integrations": IntegrationsPage,
   "/docs": DocsPage,
 };
 
@@ -131,6 +134,12 @@ const BUILTIN_NAV_REST: NavItem[] = [
   { path: "/config", labelKey: "config", label: "Config", icon: Settings },
   { path: "/env", labelKey: "keys", label: "Keys", icon: KeyRound },
   {
+    path: "/integrations",
+    labelKey: "integrations",
+    label: "Integrations",
+    icon: Plug,
+  },
+  {
     path: "/docs",
     labelKey: "documentation",
     label: "Documentation",
@@ -147,6 +156,7 @@ const ICON_MAP: Record<string, ComponentType<{ className?: string }>> = {
   MessageSquare,
   Package,
   Settings,
+  Plug,
   Puzzle,
   Sparkles,
   Terminal,

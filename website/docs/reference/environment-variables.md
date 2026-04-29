@@ -326,7 +326,10 @@ For cloud sandbox backends, persistence is filesystem-oriented. `TERMINAL_LIFETI
 | `SENDBLUE_API_KEY_ID` | Sendblue API Key ID (`sb-api-key-id`) |
 | `SENDBLUE_API_SECRET_KEY` | Sendblue API Secret (`sb-api-secret-key`) |
 | `SENDBLUE_FROM_NUMBER` | Sendblue sending number (E.164) |
-| `SENDBLUE_WEBHOOK_PUBLIC_URL` | Public **HTTPS** base URL for receive webhooks (e.g. ngrok; no path — Hermes appends `/sendblue-webhook`) |
+| `SENDBLUE_WEBHOOK_PUBLIC_URL` | Public **HTTPS** base URL for receive webhooks (e.g. ngrok; no path — Hermes appends `/sendblue-webhook`). Optional when `SENDBLUE_AUTO_NGROK=true` |
+| `SENDBLUE_AUTO_NGROK` | When `true`, Hermes starts the local webhook listener first, runs or reuses **ngrok** for `SENDBLUE_WEBHOOK_PORT`, reads the HTTPS URL from ngrok’s local API (`SENDBLUE_NGROK_API`, default `http://127.0.0.1:4040`), then registers the webhook — no manual URL copy (**requires `ngrok` on PATH** unless `SENDBLUE_NGROK_BIN` is set) |
+| `SENDBLUE_NGROK_API` | ngrok agent local API base (default `http://127.0.0.1:4040`) |
+| `SENDBLUE_NGROK_BIN` | ngrok executable (default `ngrok`) |
 | `SENDBLUE_WEBHOOK_HOST` | Local bind address (default `0.0.0.0`) |
 | `SENDBLUE_WEBHOOK_PORT` | Local listener port (default `8646`) |
 | `SENDBLUE_WEBHOOK_PATH` | URL path for inbound POSTs (default `/sendblue-webhook`) |
@@ -335,6 +338,7 @@ For cloud sandbox backends, persistence is filesystem-oriented. `TERMINAL_LIFETI
 | `SENDBLUE_ALLOWED_USERS` | Comma-separated E.164 allowlist for DMs |
 | `SENDBLUE_GROUP_ALLOWED_USERS` | Comma-separated `sendblue:group:...` allowlist |
 | `SENDBLUE_ALLOW_ALL_USERS` | Allow all senders (`true`/`false`) |
+| `SENDBLUE_REACTIONS` | When `true`, add iMessage tapbacks on the triggering message while processing (`emphasize` then `like` / `dislike`); ignored for SMS (default: `false`) |
 | `SENDBLUE_SKIP_WEBHOOK_REGISTER` | Set `true` to skip `POST /api/account/webhooks` (advanced) |
 | `QQ_APP_ID` | QQ Bot App ID from [q.qq.com](https://q.qq.com) |
 | `QQ_CLIENT_SECRET` | QQ Bot App Secret from [q.qq.com](https://q.qq.com) |

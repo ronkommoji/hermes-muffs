@@ -72,6 +72,7 @@ export interface Translations {
       config: string;
       cron: string;
       documentation: string;
+      integrations: string;
       keys: string;
       logs: string;
       sessions: string;
@@ -333,6 +334,54 @@ export interface Translations {
       external: string;
     };
     expiresIn: string;
+  };
+
+  // ── Integrations (Google Workspace, GitHub, MCP) ──
+  integrations: {
+    subtitle: string;
+    googleTitle: string;
+    googleBlurb: string;
+    googleStep1: string;
+    googleStep2: string;
+    googleStep3: string;
+    googleSecretLabel: string;
+    googleSecretHelp: string;
+    googleSaveSecret: string;
+    googleGetLink: string;
+    googleOpenConsent: string;
+    googleCodeLabel: string;
+    googleCodeHelp: string;
+    googleFinish: string;
+    googleRevoke: string;
+    googleRevokeConfirm: string;
+    googleStatusOk: string;
+    googleStatusPartial: string;
+    googleStatusNeedSecret: string;
+    githubTitle: string;
+    githubBlurb: string;
+    githubStep1: string;
+    githubPatLabel: string;
+    githubSavePat: string;
+    githubStatusOk: string;
+    githubStatusCli: string;
+    githubStatusToken: string;
+    githubStatusNone: string;
+    googleNotSignedIn: string;
+    googleAuthOpened: string;
+    googleAuthLinkCopied: string;
+    mcpTitle: string;
+    mcpBlurb: string;
+    mcpConfigured: string;
+    mcpCount: string;
+    mcpOpenYaml: string;
+    moreTitle: string;
+    moreBlurb: string;
+    moreOAuthCard: string;
+    moreSkillsCard: string;
+    linkConsole: string;
+    linkPat: string;
+    copiedUrl: string;
+    saveFailed: string;
   };
 
   // ── Language switcher ──
