@@ -45,6 +45,7 @@ const PROVIDER_GROUPS: { prefix: string; name: string; priority: number }[] = [
   { prefix: "NOUS_", name: "Nous Portal", priority: 0 },
   // Then alphabetical by display name
   { prefix: "ANTHROPIC_", name: "Anthropic", priority: 1 },
+  { prefix: "BLUEBUBBLES_", name: "BlueBubbles (iMessage)", priority: 14 },
   { prefix: "DASHSCOPE_", name: "DashScope (Qwen)", priority: 2 },
   { prefix: "HERMES_QWEN_", name: "DashScope (Qwen)", priority: 2 },
   { prefix: "DEEPSEEK_", name: "DeepSeek", priority: 3 },
@@ -60,6 +61,7 @@ const PROVIDER_GROUPS: { prefix: string; name: string; priority: number }[] = [
   { prefix: "OPENCODE_GO_", name: "OpenCode Go", priority: 10 },
   { prefix: "OPENCODE_ZEN_", name: "OpenCode Zen", priority: 11 },
   { prefix: "OPENROUTER_", name: "OpenRouter", priority: 12 },
+  { prefix: "SENDBLUE_", name: "Sendblue (iMessage / SMS)", priority: 15 },
   { prefix: "XIAOMI_", name: "Xiaomi MiMo", priority: 13 },
 ];
 
@@ -357,15 +359,16 @@ function ProviderGroupCard({
   const { t } = useI18n();
 
   // Separate API keys from base URLs and other settings
-  const apiKeys = group.entries.filter(
-    ([k]) => k.endsWith("_API_KEY") || k.endsWith("_TOKEN"),
-  );
+  const isApiKey = (k: string) =>
+    k.endsWith("_API_KEY") ||
+    k.endsWith("_TOKEN") ||
+    k.endsWith("_KEY_ID") ||
+    k.endsWith("_SECRET_KEY") ||
+    k.endsWith("_API_SECRET");
+  const apiKeys = group.entries.filter(([k]) => isApiKey(k));
   const baseUrls = group.entries.filter(([k]) => k.endsWith("_BASE_URL"));
   const other = group.entries.filter(
-    ([k]) =>
-      !k.endsWith("_API_KEY") &&
-      !k.endsWith("_TOKEN") &&
-      !k.endsWith("_BASE_URL"),
+    ([k]) => !isApiKey(k) && !k.endsWith("_BASE_URL"),
   );
   const hasAnyConfigured = group.entries.some(([, info]) => info.is_set);
   const configuredCount = group.entries.filter(

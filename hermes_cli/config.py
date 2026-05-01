@@ -2010,12 +2010,14 @@ OPTIONAL_ENV_VARS = {
     "SENDBLUE_API_SECRET_KEY": {
         "description": "Sendblue API Secret Key (HTTP header sb-api-secret-key)",
         "prompt": "Sendblue API Secret Key",
+        "url": "https://sendblue.com/",
         "password": True,
         "category": "messaging",
     },
     "SENDBLUE_FROM_NUMBER": {
-        "description": "Sendblue sending number in E.164 format",
+        "description": "Sendblue sending number in E.164 format (e.g. +15551234567). Find it in your Sendblue dashboard.",
         "prompt": "Sendblue from number",
+        "url": "https://sendblue.com/",
         "category": "messaging",
     },
     "SENDBLUE_WEBHOOK_PUBLIC_URL": {
