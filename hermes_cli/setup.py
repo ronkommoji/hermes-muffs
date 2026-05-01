@@ -2218,6 +2218,8 @@ def _setup_bluebubbles():
 
 def _setup_sendblue():
     """Configure Sendblue iMessage/SMS gateway (cloud API + ngrok webhook)."""
+    import re as _re
+
     print_header("Sendblue (iMessage / SMS)")
     existing = get_env_value("SENDBLUE_API_KEY_ID")
     if existing:
@@ -2225,14 +2227,10 @@ def _setup_sendblue():
         if not prompt_yes_no("Reconfigure Sendblue?", False):
             return
 
-    print_info("Sendblue delivers iMessage/SMS via their API. You need:")
-    print_info("  • API Key ID + Secret from https://sendblue.com/ dashboard")
-    print_info("  • Your Sendblue number in E.164 (e.g. +15551234567)")
-    print_info("  • ngrok (or similar) exposing the local webhook port with HTTPS")
-    print()
-    print_info("1. Default local webhook port: 8646 (change with SENDBLUE_WEBHOOK_PORT)")
-    print_info("2. Run in another terminal: ngrok http 8646")
-    print_info("3. Paste the https Forwarding URL below (no path at the end)")
+    print_info("Sendblue delivers iMessage/SMS via their cloud API.")
+    print_info("  • API Key ID + Secret — from https://sendblue.com/ → Dashboard → API")
+    print_info("  • Your Sendblue number in E.164 format (e.g. +15551234567)")
+    print_info("  • A public HTTPS URL for inbound webhooks (ngrok or any HTTPS tunnel)")
     print()
 
     key_id = prompt("Sendblue API Key ID")
@@ -2247,18 +2245,43 @@ def _setup_sendblue():
         return
     save_env_value("SENDBLUE_API_SECRET_KEY", secret)
 
-    from_num = prompt("Sendblue from number (E.164)")
-    if not from_num:
-        print_warning("From number required — skipping Sendblue setup")
-        return
-    save_env_value("SENDBLUE_FROM_NUMBER", from_num.strip())
+    while True:
+        from_num = prompt("Sendblue from number (E.164, e.g. +15551234567)")
+        if not from_num:
+            print_warning("From number required — skipping Sendblue setup")
+            return
+        from_num = from_num.strip()
+        if _re.match(r"^\+\d{7,15}$", from_num):
+            break
+        print_warning("Must be E.164 format: start with + followed by 7–15 digits (e.g. +15551234567)")
+    save_env_value("SENDBLUE_FROM_NUMBER", from_num)
 
-    pub = prompt("Public HTTPS URL (ngrok base, e.g. https://abc.ngrok-free.app)")
-    if not pub:
-        print_warning("Public URL required — Sendblue cannot reach localhost")
-        return
-    save_env_value("SENDBLUE_WEBHOOK_PUBLIC_URL", pub.strip().rstrip("/"))
-    print_success("Sendblue credentials saved")
+    print()
+    print_info("Sendblue requires a public HTTPS URL to deliver inbound messages.")
+    print_info("Option A — Auto-ngrok: Hermes starts ngrok automatically (requires ngrok on PATH)")
+    print_info("Option B — Manual:     Run 'ngrok http 8646' yourself and paste the URL below")
+    print()
+    use_auto_ngrok = prompt_yes_no("Auto-start ngrok for inbound webhooks? (no = paste URL manually)", False)
+
+    if use_auto_ngrok:
+        save_env_value("SENDBLUE_AUTO_NGROK", "true")
+        print_success("Auto-ngrok enabled — Hermes will start ngrok on gateway launch")
+    else:
+        save_env_value("SENDBLUE_AUTO_NGROK", "")
+        print_info("Run in another terminal: ngrok http 8646")
+        print_info("Then copy the https:// Forwarding URL (no path at the end) and paste below.")
+        print()
+        while True:
+            pub = prompt("Public HTTPS URL (e.g. https://abc.ngrok-free.app)")
+            if not pub:
+                print_warning("Public URL required — Sendblue cannot reach localhost")
+                return
+            pub = pub.strip().rstrip("/")
+            if pub.lower().startswith("https://"):
+                break
+            print_warning("URL must start with https:// — Sendblue requires HTTPS for webhooks")
+        save_env_value("SENDBLUE_WEBHOOK_PUBLIC_URL", pub)
+        print_success("Sendblue credentials saved")
 
     wh_secret = prompt("Webhook signing secret (optional; matches Sendblue sb-signing-secret)", password=True)
     if wh_secret:
@@ -2275,9 +2298,9 @@ def _setup_sendblue():
         save_env_value("SENDBLUE_HOME_CHANNEL", home.strip())
 
     port = prompt("Webhook listen port (default 8646, or empty for default)")
-    if port.strip():
+    if port and port.strip():
         try:
-            save_env_value("SENDBLUE_WEBHOOK_PORT", str(int(port)))
+            save_env_value("SENDBLUE_WEBHOOK_PORT", str(int(port.strip())))
         except ValueError:
             print_warning("Invalid port, using default 8646")
 
